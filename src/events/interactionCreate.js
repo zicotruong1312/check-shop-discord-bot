@@ -13,7 +13,12 @@ module.exports = {
                 await command.execute(interaction);
             } catch (error) {
                 console.error(error);
-                await interaction.reply({ content: 'Có lỗi xảy ra khi thực hiện lệnh này!', ephemeral: true });
+                const errMsg = { content: '❌ Có lỗi xảy ra khi thực hiện lệnh này!', ephemeral: true };
+                if (interaction.replied || interaction.deferred) {
+                    await interaction.editReply(errMsg).catch(() => {});
+                } else {
+                    await interaction.reply(errMsg).catch(() => {});
+                }
             }
         } else if (interaction.isAutocomplete()) {
             const command = interaction.client.commands.get(interaction.commandName);
