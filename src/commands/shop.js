@@ -153,16 +153,9 @@ module.exports = {
                 });
             }
 
-            // ── 1 tài khoản: fetch thẳng ──
-            if (sessions.length === 1) {
-                await interaction.deferReply({ ...EPHEMERAL });
-                await fetchAndSendShop(interaction, sessions[0]);
-
-            // ── Nhiều tài khoản: show dropdown picker ──
-            } else {
-                await showAccountPicker(interaction, sessions);
-                return; // cooldown set sau khi user chọn
-            }
+            // Luôn show dropdown để user chọn acc
+            await showAccountPicker(interaction, sessions);
+            return; // cooldown set sau khi user chọn
 
             // Cooldown 1 phút
             shopCooldown.add(interaction.user.id);
