@@ -15,7 +15,8 @@ module.exports = {
                 `> **2.** Bot sử dụng token tạm thời (1 tiếng), không lưu mật khẩu của bạn. Tính đến hiện tại, Riot chưa từng **ban (khóa vĩnh viễn)** ai vì dùng bot soi shop, tuy nhiên việc dùng tool hãng thứ 3 luôn có 1% rủi ro (bị theo dõi, ép đổi pass). Bạn tự chịu trách nhiệm khi sử dụng nhé!\n\n` +
                 `**Bước 1 — Mở trang đăng nhập Riot:**\n` +
                 `👉 **[Nhấn vào đây để đăng nhập](${riotAuthUrl})**\n` +
-                `*(Bạn tự đăng nhập trên trình duyệt của mình — Bot không nhìn thấy mật khẩu)*\n\n` +
+                `*(Bạn tự đăng nhập trên trình duyệt — Bot không nhìn thấy mật khẩu)*\n` +
+                `💡 **MUỐN ĐỔI ACCOUNT?** Hãy nhấn Chuột phải (hoặc Đè giữ) vào Link trên -> Chọn **Mở bằng Tab Ẩn Danh (Incognito/Private)** để tránh bị tự động đăng nhập acc cũ!\n\n` +
                 `**Bước 2 — Copy đường link:**\n` +
                 `Trình duyệt hiện chữ **"This site can't be reached"** (Trang web này không thể truy cập)?\n` +
                 `✅ **BÌNH THƯỜNG!** Hãy nhìn lên **thanh địa chỉ web** (URL bar), bạn sẽ thấy link bắt đầu bằng \`http://localhost/redirect#access_token=...\`\n\n` +
