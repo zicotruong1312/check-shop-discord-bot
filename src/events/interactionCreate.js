@@ -2,6 +2,7 @@ const UserSession = require('../models/UserSession');
 const { encrypt } = require('../utils/encryption');
 const { extractTokensFromUrl, getEntitlementsAndPuuid, getPlayerName } = require('../api/riotAuth');
 const { fetchAndSendShop, shopCooldown } = require('../commands/shop');
+const { fetchAndSendWallet } = require('../commands/wallet');
 
 // Deduplication: prevent the same interaction being processed twice
 // (Discord retries if bot doesn't ACK within 3s — common on Render free tier)
@@ -119,30 +120,45 @@ module.exports = {
                 if (shopCooldown.has(interaction.user.id)) {
                     return interaction.reply({
                         content: '⏳ Vui lòng đợi 1 phút trước khi xem lại shop.',
-                        ephemeral: true
+                        ...EPHEMERAL
                     });
                 }
 
                 try {
-                    await interaction.deferReply({ ephemeral: true });
+                    await interaction.deferReply({ ...EPHEMERAL });
                 } catch (e) {
-                    console.error('shop_select deferReply failed:', e.code);
+                    if (!isIgnoredError(e.code)) console.error('shop_select deferReply failed:', e.code);
                     return;
                 }
 
                 try {
                     const session = await UserSession.findOne({ discordId: interaction.user.id, puuid });
-                    if (!session) {
-                        return interaction.editReply('❌ Không tìm thấy tài khoản. Hãy `/login` lại nhé.');
-                    }
-
+                    if (!session) return interaction.editReply('❌ Không tìm thấy tài khoản. Hãy `/login` lại nhé.');
                     await fetchAndSendShop(interaction, session);
-
                     shopCooldown.add(interaction.user.id);
                     setTimeout(() => shopCooldown.delete(interaction.user.id), 60_000);
                 } catch (err) {
                     console.error('Shop select error:', err);
-                    await interaction.editReply('❌ Lỗi khi lấy shop. Token có thể hết hạn, hãy `/login` lại nhé.').catch(() => { });
+                    await interaction.editReply('❌ Lỗi khi lấy shop. Token có thể hết hạn, hãy `/login` lại nhé.').catch(() => {});
+                }
+
+            } else if (interaction.customId === 'wallet_account_select') {
+                const puuid = interaction.values[0];
+
+                try {
+                    await interaction.deferReply({ ...EPHEMERAL });
+                } catch (e) {
+                    if (!isIgnoredError(e.code)) console.error('wallet_select deferReply failed:', e.code);
+                    return;
+                }
+
+                try {
+                    const session = await UserSession.findOne({ discordId: interaction.user.id, puuid });
+                    if (!session) return interaction.editReply('❌ Không tìm thấy tài khoản. Hãy `/login` lại nhé.');
+                    await fetchAndSendWallet(interaction, session);
+                } catch (err) {
+                    console.error('Wallet select error:', err);
+                    await interaction.editReply('❌ Lỗi khi lấy số dư. Token có thể hết hạn, hãy `/login` lại nhé.').catch(() => {});
                 }
             }
         }
