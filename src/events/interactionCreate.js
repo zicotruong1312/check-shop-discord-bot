@@ -44,7 +44,9 @@ module.exports = {
                     await command.autocomplete(interaction);
                 }
             } catch (error) {
-                console.error(error);
+                // 40060 = interaction already acknowledged (user typed fast, Discord cancelled old autocomplete)
+                // This is expected behavior — ignore silently
+                if (error.code !== 40060) console.error('Autocomplete error:', error);
             }
         } else if (interaction.isButton()) {
             if (interaction.customId === 'login_btn_paste_url') {
