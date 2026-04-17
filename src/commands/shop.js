@@ -1,26 +1,30 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const {
+    SlashCommandBuilder,
+    EmbedBuilder,
+    StringSelectMenuBuilder,
+    StringSelectMenuOptionBuilder,
+    ActionRowBuilder
+} = require('discord.js');
 const UserSession = require('../models/UserSession');
 const { decrypt } = require('../utils/encryption');
 const { getStorefront, getWallet, getSkinDetails } = require('../api/riotStorefront');
 
 const shopCooldown = new Set();
 
-// Application emoji helpers (uploaded via setup_emojis.js)
+// Application emoji helpers
 const E = {
     vp: `<:vp:${process.env.EMOJI_VP}>`,
     rp: `<:rp:${process.env.EMOJI_RP}>`,
     kp: `<:kp:${process.env.EMOJI_KP}>`
 };
 
-// Skin tier color by VP price
 function getTierColor(price) {
-    if (price <= 875)  return '#009bde'; // Select   — teal
-    if (price <= 1275) return '#4b9bcb'; // Deluxe   — blue
-    if (price <= 1775) return '#d44b9c'; // Premium  — pink
-    return '#f5a623';                    // Ultra+   — gold
+    if (price <= 875)  return '#009bde';
+    if (price <= 1275) return '#4b9bcb';
+    if (price <= 1775) return '#d44b9c';
+    return '#f5a623';
 }
 
-// Hours until next 00:00 UTC store reset
 function getHoursUntilReset() {
     const now = new Date();
     const nextReset = new Date(Date.UTC(
@@ -35,11 +39,101 @@ function getHoursUntilReset() {
 const VALORANT_ICON = 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fc/Valorant_logo_-_pink.svg/600px-Valorant_logo_-_pink.svg.png';
 const SHOP_URL = 'https://playvalorant.com';
 
+// ─────────────────────────────────────────────────────────────
+// Shared: fetch + build embeds for a given session
+// interaction must already be deferred (ephemeral) before calling
+// ─────────────────────────────────────────────────────────────
+async function fetchAndSendShop(interaction, session) {
+    let tokens;
+    try {
+        tokens = JSON.parse(decrypt(session.encryptedCookies, session.iv));
+    } catch {
+        return interaction.editReply('❌ Phiên đăng nhập lỗi. Hãy dùng `/login` lại nhé.');
+    }
+
+    const { accessToken, entitlementsToken, puuid } = tokens;
+
+    const [{ skinIds, priceMap }, wallet] = await Promise.all([
+        getStorefront(accessToken, entitlementsToken, puuid),
+        getWallet(accessToken, entitlementsToken, puuid)
+    ]);
+
+    session.lastShopCheck = Date.now();
+    await session.save().catch(e => console.error('Lỗi save lastShopCheck:', e));
+
+    const skins = await getSkinDetails(skinIds, priceMap);
+
+    const embeds = [];
+
+    // Header embed
+    embeds.push(
+        new EmbedBuilder()
+            .setAuthor({ name: 'Valorant Shop', iconURL: VALORANT_ICON })
+            .setURL(SHOP_URL)
+            .setTitle(`🛒 Daily Store — ${session.riotUsername}`)
+            .setDescription(`🔄 Resets in **${getHoursUntilReset()}**`)
+            .addFields(
+                { name: `${E.vp} Valorant Points`, value: `**${wallet.vp.toLocaleString()} VP**`, inline: true },
+                { name: `${E.rp} Radianite Points`, value: `**${wallet.rp.toLocaleString()} RP**`, inline: true },
+                { name: `${E.kp} Kingdom Credits`, value: `**${wallet.kp.toLocaleString()} KP**`, inline: true }
+            )
+            .setColor('#FF4655')
+            .setTimestamp()
+    );
+
+    // One embed per skin
+    for (const skin of skins) {
+        const embed = new EmbedBuilder()
+            .setAuthor({ name: 'Valorant Shop', iconURL: VALORANT_ICON })
+            .setURL(`https://playvalorant.com/skin/${skin.id}`)
+            .setTitle(skin.name)
+            .setDescription(`${E.vp} **${skin.price.toLocaleString()} VP**`)
+            .addFields({ name: '\u200b', value: '\u200b' })
+            .setColor(getTierColor(skin.price))
+            .setFooter({ text: 'Valorant Shop Bot • Chỉ bạn mới thấy tin nhắn này' });
+
+        if (skin.icon) embed.setThumbnail(skin.icon);
+        embeds.push(embed);
+    }
+
+    await interaction.editReply({ embeds, components: [] });
+}
+
+// ─────────────────────────────────────────────────────────────
+// Show account picker select menu (ephemeral)
+// ─────────────────────────────────────────────────────────────
+async function showAccountPicker(interaction, sessions) {
+    const select = new StringSelectMenuBuilder()
+        .setCustomId('shop_account_select')
+        .setPlaceholder('🎮 Chọn tài khoản muốn xem shop...')
+        .addOptions(
+            sessions.map(s =>
+                new StringSelectMenuOptionBuilder()
+                    .setLabel(s.riotUsername)
+                    .setDescription(`PUUID: ${s.puuid.slice(0, 8)}...`)
+                    .setValue(s.puuid)
+            )
+        );
+
+    const row = new ActionRowBuilder().addComponents(select);
+
+    const embed = new EmbedBuilder()
+        .setTitle('🛒 Chọn Tài Khoản')
+        .setDescription(
+            `Bạn có **${sessions.length} tài khoản** được liên kết.\n` +
+            `Hãy chọn tài khoản muốn xem shop bên dưới:`
+        )
+        .setColor('#FF4655')
+        .setFooter({ text: 'Chỉ bạn mới thấy tin nhắn này' });
+
+    await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
+}
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('shop')
         .setDescription('Xem cửa hàng Valorant hàng ngày')
-        .addStringOption(option => 
+        .addStringOption(option =>
             option.setName('account')
                 .setDescription('Chọn tài khoản (nếu có nhiều tài khoản)')
                 .setRequired(false)
@@ -52,7 +146,7 @@ module.exports = {
         const filtered = sessions
             .filter(s => s.riotUsername.toLowerCase().includes(focusedValue.toLowerCase()))
             .slice(0, 25);
-            
+
         await interaction.respond(
             filtered.map(s => ({ name: s.riotUsername, value: s.puuid }))
         );
@@ -66,85 +160,39 @@ module.exports = {
             });
         }
 
-        await interaction.deferReply({ ephemeral: true });
-
         try {
-            // 1. Load session
             const selectedPuuid = interaction.options.getString('account');
-            let session;
 
+            // ── Trường hợp đã chọn tài khoản qua option ──
             if (selectedPuuid) {
-                session = await UserSession.findOne({ discordId: interaction.user.id, puuid: selectedPuuid });
+                const session = await UserSession.findOne({ discordId: interaction.user.id, puuid: selectedPuuid });
                 if (!session) {
-                    return interaction.editReply('❌ Không tìm thấy tài khoản đã chọn.');
+                    return interaction.reply({ content: '❌ Không tìm thấy tài khoản đã chọn.', ephemeral: true });
                 }
+                await interaction.deferReply({ ephemeral: true });
+                await fetchAndSendShop(interaction, session);
+
             } else {
                 const sessions = await UserSession.find({ discordId: interaction.user.id });
+
                 if (sessions.length === 0) {
-                    return interaction.editReply('❌ Bạn chưa đăng nhập. Hãy dùng lệnh `/login` trước.');
+                    return interaction.reply({
+                        content: '❌ Bạn chưa đăng nhập. Hãy dùng lệnh `/login` trước.',
+                        ephemeral: true
+                    });
                 }
-                if (sessions.length > 1) {
-                    return interaction.editReply('⚠️ Bạn có nhiều tài khoản! Vui lòng chọn tài khoản muốn xem ở mục `account` khi gõ lệnh `/shop`.');
+
+                // ── 1 tài khoản: fetch thẳng ──
+                if (sessions.length === 1) {
+                    await interaction.deferReply({ ephemeral: true });
+                    await fetchAndSendShop(interaction, sessions[0]);
+
+                // ── Nhiều tài khoản: show dropdown picker ──
+                } else {
+                    await showAccountPicker(interaction, sessions);
+                    return; // cooldown sẽ được set sau khi user chọn
                 }
-                session = sessions[0];
             }
-
-            let tokens;
-            try {
-                tokens = JSON.parse(decrypt(session.encryptedCookies, session.iv));
-            } catch {
-                return interaction.editReply('❌ Phiên đăng nhập lỗi. Hãy dùng `/login` lại nhé.');
-            }
-
-            const { accessToken, entitlementsToken, puuid } = tokens;
-
-            // 2. Fetch storefront + wallet in parallel
-            const [{ skinIds, priceMap }, wallet] = await Promise.all([
-                getStorefront(accessToken, entitlementsToken, puuid),
-                getWallet(accessToken, entitlementsToken, puuid)
-            ]);
-
-            // Update lastShopCheck
-            session.lastShopCheck = Date.now();
-            await session.save().catch(e => console.error("Lỗi save lastShopCheck:", e));
-
-            // 3. Fetch skin details (English names)
-            const skins = await getSkinDetails(skinIds, priceMap);
-
-            const embeds = [];
-
-            // ── Header embed ──────────────────────────────────────────
-            embeds.push(
-                new EmbedBuilder()
-                    .setAuthor({ name: 'Valorant Shop', iconURL: VALORANT_ICON })
-                    .setURL(SHOP_URL)
-                    .setTitle(`🛒 Daily Store — ${session.riotUsername}`)
-                    .setDescription(`🔄 Resets in **${getHoursUntilReset()}**`)
-                    .addFields(
-                        { name: `${E.vp} Valorant Points`, value: `**${wallet.vp.toLocaleString()} VP**`, inline: true },
-                        { name: `${E.rp} Radianite Points`, value: `**${wallet.rp.toLocaleString()} RP**`, inline: true },
-                        { name: `${E.kp} Kingdom Credits`, value: `**${wallet.kp.toLocaleString()} KP**`, inline: true }
-                    )
-                    .setColor('#FF4655')
-                    .setTimestamp()
-            );
-
-            // ── One embed per skin (unique URL per skin = same display width) ──
-            for (const skin of skins) {
-                const embed = new EmbedBuilder()
-                    .setAuthor({ name: 'Valorant Shop', iconURL: VALORANT_ICON })
-                    .setURL(`https://playvalorant.com/skin/${skin.id}`)
-                    .setTitle(skin.name)
-                    .setDescription(`${E.vp} **${skin.price.toLocaleString()} VP**`)
-                    .addFields({ name: '\u200b', value: '\u200b' })
-                    .setColor(getTierColor(skin.price))
-                    .setFooter({ text: 'Valorant Shop Bot' });
-
-                if (skin.icon) embed.setThumbnail(skin.icon);
-                embeds.push(embed);
-            }
-
-            await interaction.editReply({ embeds });
 
             // Cooldown 1 phút
             shopCooldown.add(interaction.user.id);
@@ -156,7 +204,16 @@ module.exports = {
             const hint = msg.includes('404')
                 ? '\n\n⚠️ Hãy `/login` lại và copy link từ trang **localhost**.'
                 : '\nToken có thể hết hạn (1h), hãy `/login` lại.';
-            await interaction.editReply(`❌ ${msg}${hint}`);
+            const errText = `❌ ${msg}${hint}`;
+            if (interaction.deferred || interaction.replied) {
+                await interaction.editReply(errText).catch(() => {});
+            } else {
+                await interaction.reply({ content: errText, ephemeral: true }).catch(() => {});
+            }
         }
-    }
+    },
+
+    // Expose for use in interactionCreate
+    fetchAndSendShop,
+    shopCooldown
 };

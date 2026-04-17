@@ -1,6 +1,7 @@
 const UserSession = require('../models/UserSession');
 const { encrypt } = require('../utils/encryption');
 const { extractTokensFromUrl, getEntitlementsAndPuuid, getPlayerName } = require('../api/riotAuth');
+const { fetchAndSendShop, shopCooldown } = require('../commands/shop');
 
 // Deduplication: prevent the same interaction being processed twice
 // (Discord retries if bot doesn't ACK within 3s — common on Render free tier)
@@ -107,6 +108,39 @@ module.exports = {
                 } catch (err) {
                     console.error("Login Error: ", err);
                     await interaction.editReply({ content: `❌ Đăng nhập thất bại: ${err.message}` }).catch(() => {});
+                }
+            }
+        } else if (interaction.isStringSelectMenu()) {
+            if (interaction.customId === 'shop_account_select') {
+                const puuid = interaction.values[0];
+
+                if (shopCooldown.has(interaction.user.id)) {
+                    return interaction.reply({
+                        content: '⏳ Vui lòng đợi 1 phút trước khi xem lại shop.',
+                        ephemeral: true
+                    });
+                }
+
+                try {
+                    await interaction.deferReply({ ephemeral: true });
+                } catch (e) {
+                    console.error('shop_select deferReply failed:', e.code);
+                    return;
+                }
+
+                try {
+                    const session = await UserSession.findOne({ discordId: interaction.user.id, puuid });
+                    if (!session) {
+                        return interaction.editReply('❌ Không tìm thấy tài khoản. Hãy `/login` lại nhé.');
+                    }
+
+                    await fetchAndSendShop(interaction, session);
+
+                    shopCooldown.add(interaction.user.id);
+                    setTimeout(() => shopCooldown.delete(interaction.user.id), 60_000);
+                } catch (err) {
+                    console.error('Shop select error:', err);
+                    await interaction.editReply('❌ Lỗi khi lấy shop. Token có thể hết hạn, hãy `/login` lại nhé.').catch(() => {});
                 }
             }
         }
