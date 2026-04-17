@@ -1,0 +1,24 @@
+{
+  "name": "checkshop",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@valapi/auth": "^5.0.0-beta.3",
+    "axios": "^1.15.0",
+    "canvas": "^3.2.3",
+    "discord.js": "^14.26.3",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "mongoose": "^9.4.1",
+    "node-cron": "^4.2.1"
+  }
+}
