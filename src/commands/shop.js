@@ -3,12 +3,14 @@ const {
     EmbedBuilder,
     StringSelectMenuBuilder,
     StringSelectMenuOptionBuilder,
-    ActionRowBuilder
+    ActionRowBuilder,
+    MessageFlags
 } = require('discord.js');
 const UserSession = require('../models/UserSession');
 const { decrypt } = require('../utils/encryption');
 const { getStorefront, getWallet, getSkinDetails } = require('../api/riotStorefront');
 
+const EPHEMERAL = { flags: MessageFlags.Ephemeral };
 const shopCooldown = new Set();
 
 // Application emoji helpers
@@ -19,7 +21,7 @@ const E = {
 };
 
 function getTierColor(price) {
-    if (price <= 875) return '#009bde';
+    if (price <= 875)  return '#009bde';
     if (price <= 1275) return '#4b9bcb';
     if (price <= 1775) return '#d44b9c';
     return '#f5a623';
@@ -62,7 +64,6 @@ async function fetchAndSendShop(interaction, session) {
     await session.save().catch(e => console.error('Lỗi save lastShopCheck:', e));
 
     const skins = await getSkinDetails(skinIds, priceMap);
-
     const embeds = [];
 
     // Header embed
@@ -157,7 +158,7 @@ module.exports = {
                 await interaction.deferReply({ ...EPHEMERAL });
                 await fetchAndSendShop(interaction, sessions[0]);
 
-                // ── Nhiều tài khoản: show dropdown picker ──
+            // ── Nhiều tài khoản: show dropdown picker ──
             } else {
                 await showAccountPicker(interaction, sessions);
                 return; // cooldown set sau khi user chọn
@@ -175,7 +176,7 @@ module.exports = {
                 : '\nToken có thể hết hạn (1h), hãy `/login` lại.';
             const errText = `❌ ${msg}${hint}`;
             if (interaction.deferred || interaction.replied) {
-                await interaction.editReply(errText).catch(() => { });
+                await interaction.editReply(errText).catch(() => {});
             } else {
                 await interaction.reply({ content: errText, ...EPHEMERAL }).catch(() => {});
             }
