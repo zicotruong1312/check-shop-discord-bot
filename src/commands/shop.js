@@ -127,7 +127,7 @@ async function showAccountPicker(interaction, sessions) {
         .setColor('#FF4655')
         .setFooter({ text: 'Chỉ bạn mới thấy tin nhắn này' });
 
-    await interaction.reply({ embeds: [embed], components: [row], ...EPHEMERAL });
+    await interaction.editReply({ embeds: [embed], components: [row] });
 }
 
 module.exports = {
@@ -136,30 +136,27 @@ module.exports = {
         .setDescription('Xem cửa hàng Valorant hàng ngày'),
 
     async execute(interaction) {
+        // ── Defer TRƯỚC TIÊN để tránh 3s timeout khi Render cold start ──
+        try {
+            await interaction.deferReply({ ...EPHEMERAL });
+        } catch (e) {
+            return; // Interaction đã expired (10062), bỏ qua
+        }
+
         if (shopCooldown.has(interaction.user.id)) {
-            return interaction.reply({
-                content: '⏳ Vui lòng đợi 1 phút trước khi xem lại shop.',
-                ...EPHEMERAL
-            });
+            return interaction.editReply('⏳ Vui lòng đợi 1 phút trước khi xem lại shop.');
         }
 
         try {
             const sessions = await UserSession.find({ discordId: interaction.user.id });
 
             if (sessions.length === 0) {
-                return interaction.reply({
-                    content: '❌ Bạn chưa đăng nhập. Hãy dùng lệnh `/login` trước.',
-                    ...EPHEMERAL
-                });
+                return interaction.editReply('❌ Bạn chưa đăng nhập. Hãy dùng lệnh `/login` trước.');
             }
 
             // Luôn show dropdown để user chọn acc
             await showAccountPicker(interaction, sessions);
-            return; // cooldown set sau khi user chọn
-
-            // Cooldown 1 phút
-            shopCooldown.add(interaction.user.id);
-            setTimeout(() => shopCooldown.delete(interaction.user.id), 60_000);
+            // cooldown set sau khi user chọn từ dropdown
 
         } catch (error) {
             console.error('Shop Error:', error);
@@ -167,12 +164,7 @@ module.exports = {
             const hint = msg.includes('404')
                 ? '\n\n⚠️ Hãy `/login` lại và copy link từ trang **localhost**.'
                 : '\nToken có thể hết hạn (1h), hãy `/login` lại.';
-            const errText = `❌ ${msg}${hint}`;
-            if (interaction.deferred || interaction.replied) {
-                await interaction.editReply(errText).catch(() => {});
-            } else {
-                await interaction.reply({ content: errText, ...EPHEMERAL }).catch(() => {});
-            }
+            await interaction.editReply(`❌ ${msg}${hint}`).catch(() => {});
         }
     },
 
