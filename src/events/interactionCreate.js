@@ -60,7 +60,7 @@ module.exports = {
                     const { entitlementsToken, puuid } = await getEntitlementsAndPuuid(accessToken);
 
                     // Fetch Riot Username (GameName#TagLine)
-                    const riotUsername = await getPlayerName(accessToken, puuid);
+                    const riotUsername = await getPlayerName(accessToken, entitlementsToken, puuid);
 
                     // We bundle everything into a JSON string to keep MongoDB schema compatible
                     const sessionDataJSON = JSON.stringify({ accessToken, entitlementsToken, puuid });

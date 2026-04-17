@@ -86,13 +86,14 @@ async function getEntitlementsAndPuuid(accessToken) {
     return { entitlementsToken, puuid };
 }
 
-async function getPlayerName(accessToken, puuid) {
+async function getPlayerName(accessToken, entitlementsToken, puuid) {
     const url = 'https://pd.ap.a.pvp.net/name-service/v2/players';
     try {
         const response = await axios.put(url, [puuid], {
             headers: {
                 ...defaultHeaders,
-                'Authorization': `Bearer ${accessToken}`
+                'Authorization': `Bearer ${accessToken}`,
+                'X-Riot-Entitlements-JWT': entitlementsToken
             },
             httpsAgent: agent
         });
@@ -102,7 +103,7 @@ async function getPlayerName(accessToken, puuid) {
         }
         return `Unknown`;
     } catch (e) {
-        console.error("Lấy tên Ingame lỗi:", e.message);
+        console.error("Lấy tên Ingame lỗi:", e.response?.data ?? e.message);
         return `Unknown`;
     }
 }
