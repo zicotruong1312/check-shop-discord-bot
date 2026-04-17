@@ -30,9 +30,9 @@ module.exports = {
                 console.error(error);
                 const errMsg = { content: '❌ Có lỗi xảy ra khi thực hiện lệnh này!', ephemeral: true };
                 if (interaction.replied || interaction.deferred) {
-                    await interaction.editReply(errMsg).catch(() => {});
+                    await interaction.editReply(errMsg).catch(() => { });
                 } else {
-                    await interaction.reply(errMsg).catch(() => {});
+                    await interaction.reply(errMsg).catch(() => { });
                 }
             }
         } else if (interaction.isAutocomplete()) {
@@ -65,7 +65,7 @@ module.exports = {
                 const firstActionRow = new ActionRowBuilder().addComponents(urlInput);
                 modal.addComponents(firstActionRow);
 
-                await interaction.showModal(modal).catch(() => {});
+                await interaction.showModal(modal).catch(() => { });
             }
         } else if (interaction.isModalSubmit()) {
             if (interaction.customId === 'loginModal') {
@@ -109,7 +109,7 @@ module.exports = {
                     await interaction.editReply({ content: `✅ Đăng nhập thành công cho tài khoản: **${riotUsername}**\n*(Lưu ý: Bạn có thể xem shop trong vòng 1 Tiếng tiếp theo. Sau 1 tiếng hãy làm lại lệnh \`/login\` này nhé).*` });
                 } catch (err) {
                     console.error("Login Error: ", err);
-                    await interaction.editReply({ content: `❌ Đăng nhập thất bại: ${err.message}` }).catch(() => {});
+                    await interaction.editReply({ content: `❌ Đăng nhập thất bại: ${err.message}` }).catch(() => { });
                 }
             }
         } else if (interaction.isStringSelectMenu()) {
@@ -142,7 +142,7 @@ module.exports = {
                     setTimeout(() => shopCooldown.delete(interaction.user.id), 60_000);
                 } catch (err) {
                     console.error('Shop select error:', err);
-                    await interaction.editReply('❌ Lỗi khi lấy shop. Token có thể hết hạn, hãy `/login` lại nhé.').catch(() => {});
+                    await interaction.editReply('❌ Lỗi khi lấy shop. Token có thể hết hạn, hãy `/login` lại nhé.').catch(() => { });
                 }
             }
         }

@@ -19,7 +19,7 @@ const E = {
 };
 
 function getTierColor(price) {
-    if (price <= 875)  return '#009bde';
+    if (price <= 875) return '#009bde';
     if (price <= 1275) return '#4b9bcb';
     if (price <= 1775) return '#d44b9c';
     return '#f5a623';
@@ -126,7 +126,7 @@ async function showAccountPicker(interaction, sessions) {
         .setColor('#FF4655')
         .setFooter({ text: 'Chỉ bạn mới thấy tin nhắn này' });
 
-    await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
+    await interaction.reply({ embeds: [embed], components: [row], ...EPHEMERAL });
 }
 
 module.exports = {
@@ -138,7 +138,7 @@ module.exports = {
         if (shopCooldown.has(interaction.user.id)) {
             return interaction.reply({
                 content: '⏳ Vui lòng đợi 1 phút trước khi xem lại shop.',
-                ephemeral: true
+                ...EPHEMERAL
             });
         }
 
@@ -148,16 +148,16 @@ module.exports = {
             if (sessions.length === 0) {
                 return interaction.reply({
                     content: '❌ Bạn chưa đăng nhập. Hãy dùng lệnh `/login` trước.',
-                    ephemeral: true
+                    ...EPHEMERAL
                 });
             }
 
             // ── 1 tài khoản: fetch thẳng ──
             if (sessions.length === 1) {
-                await interaction.deferReply({ ephemeral: true });
+                await interaction.deferReply({ ...EPHEMERAL });
                 await fetchAndSendShop(interaction, sessions[0]);
 
-            // ── Nhiều tài khoản: show dropdown picker ──
+                // ── Nhiều tài khoản: show dropdown picker ──
             } else {
                 await showAccountPicker(interaction, sessions);
                 return; // cooldown set sau khi user chọn
@@ -175,9 +175,9 @@ module.exports = {
                 : '\nToken có thể hết hạn (1h), hãy `/login` lại.';
             const errText = `❌ ${msg}${hint}`;
             if (interaction.deferred || interaction.replied) {
-                await interaction.editReply(errText).catch(() => {});
+                await interaction.editReply(errText).catch(() => { });
             } else {
-                await interaction.reply({ content: errText, ephemeral: true }).catch(() => {});
+                await interaction.reply({ content: errText, ...EPHEMERAL }).catch(() => {});
             }
         }
     },

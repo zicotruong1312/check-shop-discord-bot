@@ -1,7 +1,9 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
 const UserSession = require('../models/UserSession');
 const { decrypt } = require('../utils/encryption');
 const { getWallet } = require('../api/riotStorefront');
+
+const EPHEMERAL = { flags: MessageFlags.Ephemeral };
 
 const E = {
     vp: `<:vp:${process.env.EMOJI_VP}>`,
@@ -13,7 +15,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('wallet')
         .setDescription('Xem số dư VP, Radianite và Kingdom Credits trong tài khoản Valorant')
-        .addStringOption(option => 
+        .addStringOption(option =>
             option.setName('account')
                 .setDescription('Chọn tài khoản (nếu có nhiều tài khoản)')
                 .setRequired(false)
@@ -26,14 +28,14 @@ module.exports = {
         const filtered = sessions
             .filter(s => s.riotUsername.toLowerCase().includes(focusedValue.toLowerCase()))
             .slice(0, 25);
-            
+
         await interaction.respond(
             filtered.map(s => ({ name: s.riotUsername, value: s.puuid }))
         );
     },
 
     async execute(interaction) {
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ ...EPHEMERAL });
 
         try {
             const selectedPuuid = interaction.options.getString('account');
@@ -69,21 +71,9 @@ module.exports = {
                 .setTitle(`💰 Số Dư Tài Khoản — ${session.riotUsername}`)
                 .setColor('#FF4655')
                 .addFields(
-                    {
-                        name: `${E.vp} Valorant Points (VP)`,
-                        value: `**${wallet.vp.toLocaleString()} VP**`,
-                        inline: true
-                    },
-                    {
-                        name: `${E.rp} Radianite Points (RP)`,
-                        value: `**${wallet.rp.toLocaleString()} RP**`,
-                        inline: true
-                    },
-                    {
-                        name: `${E.kp} Kingdom Credits (KP)`,
-                        value: `**${wallet.kp.toLocaleString()} KP**`,
-                        inline: true
-                    }
+                    { name: `${E.vp} Valorant Points (VP)`, value: `**${wallet.vp.toLocaleString()} VP**`, inline: true },
+                    { name: `${E.rp} Radianite Points (RP)`, value: `**${wallet.rp.toLocaleString()} RP**`, inline: true },
+                    { name: `${E.kp} Kingdom Credits (KP)`, value: `**${wallet.kp.toLocaleString()} KP**`, inline: true }
                 )
                 .setFooter({ text: 'Valorant Shop Bot • Chỉ bạn mới thấy tin nhắn này' })
                 .setTimestamp();
@@ -92,7 +82,7 @@ module.exports = {
 
         } catch (error) {
             console.error('Wallet Error:', error);
-            await interaction.editReply(`❌ Không lấy được số dư. Hãy thử /login lại nhé.`);
+            await interaction.editReply('❌ Không lấy được số dư. Hãy thử `/login` lại nhé.');
         }
     }
 };

@@ -1,5 +1,7 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
 const UserSession = require('../models/UserSession');
+
+const EPHEMERAL = { flags: MessageFlags.Ephemeral };
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -21,7 +23,7 @@ module.exports = {
                         .setAutocomplete(true)
                 )
         ),
-        
+
     async autocomplete(interaction) {
         const focusedValue = interaction.options.getFocused();
         const subcommand = interaction.options.getSubcommand();
@@ -31,7 +33,7 @@ module.exports = {
             const filtered = sessions
                 .filter(s => s.riotUsername.toLowerCase().includes(focusedValue.toLowerCase()))
                 .slice(0, 25);
-                
+
             await interaction.respond(
                 filtered.map(s => ({ name: s.riotUsername, value: s.puuid }))
             );
@@ -44,7 +46,7 @@ module.exports = {
         if (subcommand === 'list') {
             const sessions = await UserSession.find({ discordId: interaction.user.id });
             if (sessions.length === 0) {
-                return interaction.reply({ content: 'Bạn chưa liên kết tài khoản nào. Hãy dùng `/login` nhé!', ephemeral: true });
+                return interaction.reply({ content: 'Bạn chưa liên kết tài khoản nào. Hãy dùng `/login` nhé!', ...EPHEMERAL });
             }
 
             const description = sessions.map((s, idx) => {
@@ -56,17 +58,17 @@ module.exports = {
                 .setTitle('📋 Danh sách Tài Khoản')
                 .setDescription(description)
                 .setColor('#10B981');
-                
-            await interaction.reply({ embeds: [embed], ephemeral: true });
+
+            await interaction.reply({ embeds: [embed], ...EPHEMERAL });
 
         } else if (subcommand === 'remove') {
             const puuid = interaction.options.getString('riot_name');
-            const result = await UserSession.findOneAndDelete({ discordId: interaction.user.id, puuid: puuid });
-            
+            const result = await UserSession.findOneAndDelete({ discordId: interaction.user.id, puuid });
+
             if (result) {
-                await interaction.reply({ content: `✅ Đã xóa tài khoản **${result.riotUsername}** khỏi danh sách.`, ephemeral: true });
+                await interaction.reply({ content: `✅ Đã xóa tài khoản **${result.riotUsername}** khỏi danh sách.`, ...EPHEMERAL });
             } else {
-                await interaction.reply({ content: 'Không tìm thấy tài khoản để xóa.', ephemeral: true });
+                await interaction.reply({ content: 'Không tìm thấy tài khoản để xóa.', ...EPHEMERAL });
             }
         }
     }
