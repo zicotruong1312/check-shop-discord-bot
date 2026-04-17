@@ -35,30 +35,65 @@ const defaultHeaders = {
 };
 
 function extractTokensFromUrl(redirectUrl) {
-    // Support both:
-    // http://localhost/redirect#access_token=eyJ...  (riot-client flow)
-    // https://playvalorant.com/opt_in#access_token=eyJ...  (web flow)
-    const urlStr = redirectUrl.trim().replace('#', '?');
+    const raw = redirectUrl.trim();
+
+    // ── Kiểm tra sơ bộ cú pháp trước khi parse ─────────────────────────
+    if (!raw.startsWith('http')) {
+        throw new Error(
+            '❌ **Link không hợp lệ!**\n\n' +
+            '🔎 Bạn cần copy **toàn bộ đường link** từ **thanh địa chỉ trình duyệt** sau khi đăng nhập Riot.\n\n' +
+            '✅ **Link đúng trông như thế này:**\n' +
+            '`http://localhost/redirect#access_token=eyJhbGciOiJ...`\n\n' +
+            '❌ **Bạn KHÔNG nên dán:**\n' +
+            '• Mật khẩu / username\n' +
+            '• Link trang đăng nhập (auth.riotgames.com)\n' +
+            '• Chỉ một phần của link'
+        );
+    }
+
+    if (!raw.includes('access_token')) {
+        throw new Error(
+            '❌ **Link thiếu Access Token!**\n\n' +
+            '🔎 Có vẻ bạn đã copy **nhầm link** — link đúng phải chứa `access_token=` ở trong.\n\n' +
+            '📋 **Cách làm đúng:**\n' +
+            '1. Mở link đăng nhập → đăng nhập bằng tài khoản Riot\n' +
+            '2. Trình duyệt hiện **"This site can\'t be reached"** → **BÌNH THƯỜNG!**\n' +
+            '3. Nhìn lên **thanh địa chỉ (URL bar)** → bôi đen và copy **toàn bộ**\n' +
+            '4. Link copy đúng bắt đầu bằng: `http://localhost/redirect#access_token=eyJ...`'
+        );
+    }
+
+    // ── Parse URL ────────────────────────────────────────────────────────
+    const urlStr = raw.replace('#', '?');
     try {
         const url = new URL(urlStr);
         const accessToken = url.searchParams.get('access_token');
         const idToken = url.searchParams.get('id_token');
-        
-        if (!accessToken) {
+
+        if (!accessToken || accessToken.split('.').length !== 3) {
             throw new Error(
-                "Link bạn dán không chứa Access Token.\n" +
-                "Hãy đảm bảo copy **toàn bộ** đường link từ thanh địa chỉ sau khi đăng nhập nhé!"
+                '❌ **Access Token không hợp lệ hoặc bị cắt ngắn!**\n\n' +
+                '🔎 Có thể bạn chỉ copy được **một phần** của link.\n\n' +
+                '📋 **Hãy thử lại:**\n' +
+                '• Dùng **Ctrl+A** để bôi đen toàn bộ nội dung trong thanh địa chỉ\n' +
+                '• Sau đó **Ctrl+C** để copy\n' +
+                '• Dán vào ô này và bấm Gửi'
             );
         }
-        
+
         return { accessToken, idToken };
     } catch (e) {
-        if (e.message.includes('Access Token')) throw e;
+        if (e.message.startsWith('❌')) throw e;
         throw new Error(
-            "Link không hợp lệ. Hãy copy toàn bộ URL từ thanh địa chỉ, bắt đầu bằng `http://localhost/redirect#access_token=...`"
+            '❌ **Link bị lỗi định dạng!**\n\n' +
+            '🔎 Bot không thể đọc link bạn vừa dán.\n\n' +
+            '✅ **Link đúng trông như thế này:**\n' +
+            '`http://localhost/redirect#access_token=eyJhbGciOiJ...&token_type=Bearer&...`\n\n' +
+            '💡 **Mẹo:** Dùng trình duyệt **Chrome** hoặc **Edge** để đăng nhập, tránh dùng Firefox vì đôi khi bị lỗi redirect.'
         );
     }
 }
+
 
 async function getEntitlementsAndPuuid(accessToken) {
     // 1. Get Entitlements Token
