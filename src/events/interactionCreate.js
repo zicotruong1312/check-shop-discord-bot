@@ -1,8 +1,17 @@
+const { MessageFlags } = require('discord.js');
 const UserSession = require('../models/UserSession');
 const { encrypt } = require('../utils/encryption');
 const { extractTokensFromUrl, getEntitlementsAndPuuid, getPlayerName } = require('../api/riotAuth');
 const { fetchAndSendShop, shopCooldown } = require('../commands/shop');
 const { fetchAndSendWallet } = require('../commands/wallet');
+
+const EPHEMERAL = { flags: MessageFlags.Ephemeral };
+
+// Silently ignore expected Discord API errors
+function isIgnoredError(code) {
+    return code === 40060  // Already acknowledged
+        || code === 10062; // Unknown interaction (expired — Render cold start)
+}
 
 // Deduplication: prevent the same interaction being processed twice
 // (Discord retries if bot doesn't ACK within 3s — common on Render free tier)
