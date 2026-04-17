@@ -15,8 +15,7 @@ module.exports = {
             .setDescription(
                 `> ⚠️ Không dùng \`/shop\` khi đang mở game. Bot không lưu mật khẩu của bạn.\n\n` +
                 `**1️⃣ Đăng nhập đúng tài khoản**\n` +
-                `→ **[Vào trang Riot để xác nhận / đổi acc](${riotLoginUrl})**\n` +
-                `*(Nếu muốn đổi acc: chuột phải → Mở Tab Ẩn Danh)*\n\n` +
+                `→ **[Vào trang Riot để xác nhận / đổi acc](${riotLoginUrl})**\n\n` +
                 `**2️⃣ Lấy token**\n` +
                 `→ **[Nhấn vào đây sau khi đúng acc rồi](${riotAuthUrl})**\n` +
                 `Trình duyệt báo lỗi? **Bình thường!** Lên URL bar, copy toàn bộ link \`http://localhost/redirect#access_token=...\`\n\n` +
