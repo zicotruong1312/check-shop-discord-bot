@@ -132,25 +132,7 @@ async function showAccountPicker(interaction, sessions) {
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('shop')
-        .setDescription('Xem cửa hàng Valorant hàng ngày')
-        .addStringOption(option =>
-            option.setName('account')
-                .setDescription('Chọn tài khoản (nếu có nhiều tài khoản)')
-                .setRequired(false)
-                .setAutocomplete(true)
-        ),
-
-    async autocomplete(interaction) {
-        const focusedValue = interaction.options.getFocused();
-        const sessions = await UserSession.find({ discordId: interaction.user.id });
-        const filtered = sessions
-            .filter(s => s.riotUsername.toLowerCase().includes(focusedValue.toLowerCase()))
-            .slice(0, 25);
-
-        await interaction.respond(
-            filtered.map(s => ({ name: s.riotUsername, value: s.puuid }))
-        );
-    },
+        .setDescription('Xem cửa hàng Valorant hàng ngày'),
 
     async execute(interaction) {
         if (shopCooldown.has(interaction.user.id)) {
@@ -161,37 +143,24 @@ module.exports = {
         }
 
         try {
-            const selectedPuuid = interaction.options.getString('account');
+            const sessions = await UserSession.find({ discordId: interaction.user.id });
 
-            // ── Trường hợp đã chọn tài khoản qua option ──
-            if (selectedPuuid) {
-                const session = await UserSession.findOne({ discordId: interaction.user.id, puuid: selectedPuuid });
-                if (!session) {
-                    return interaction.reply({ content: '❌ Không tìm thấy tài khoản đã chọn.', ephemeral: true });
-                }
+            if (sessions.length === 0) {
+                return interaction.reply({
+                    content: '❌ Bạn chưa đăng nhập. Hãy dùng lệnh `/login` trước.',
+                    ephemeral: true
+                });
+            }
+
+            // ── 1 tài khoản: fetch thẳng ──
+            if (sessions.length === 1) {
                 await interaction.deferReply({ ephemeral: true });
-                await fetchAndSendShop(interaction, session);
+                await fetchAndSendShop(interaction, sessions[0]);
 
+            // ── Nhiều tài khoản: show dropdown picker ──
             } else {
-                const sessions = await UserSession.find({ discordId: interaction.user.id });
-
-                if (sessions.length === 0) {
-                    return interaction.reply({
-                        content: '❌ Bạn chưa đăng nhập. Hãy dùng lệnh `/login` trước.',
-                        ephemeral: true
-                    });
-                }
-
-                // ── 1 tài khoản: fetch thẳng ──
-                if (sessions.length === 1) {
-                    await interaction.deferReply({ ephemeral: true });
-                    await fetchAndSendShop(interaction, sessions[0]);
-
-                // ── Nhiều tài khoản: show dropdown picker ──
-                } else {
-                    await showAccountPicker(interaction, sessions);
-                    return; // cooldown sẽ được set sau khi user chọn
-                }
+                await showAccountPicker(interaction, sessions);
+                return; // cooldown set sau khi user chọn
             }
 
             // Cooldown 1 phút
